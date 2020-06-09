@@ -16,9 +16,42 @@ dateSubmit <- format(Sys.time(), "%b %d %Y")
 rand <- rnorm(1)
 ```
 # Machine Learning Study: Weightlifting Form Identification
-Submitted by Andrew Chang on `r dateSubmit`
+Submitted by Andrew Chang on `r dateSubmit` for the Johns Hopkins Practical Machine Learning course
 
 ## Overview of the Study 
-The purpose of this study is to train a model that could identify a specific exercise movement based on kinematic (accelerometer and gyroscopic) measurements and evaluate its predictive ability on a test set of 20 observations. The study determined relevant features extracted from a set of 160 candidate features that were associated with kinematic movements, ultimately arriving at a set of [~50] features as viable predictors for model fitting. In the course of identification, a set of highly correlated predictors were flagged out of the set of viable predictors to better inform model selection decisions regarding bias-reduction/variance-increase trade-offs at a later stage, for either Principal Components Analysis (PCA) or outright elimination. The study then trained three random forest models corresponding to datasets that (1) included, (2) excluded, and (3) transformed the flagged predictors via PCA. The accuracy of three models was then compared and one was selected to identify the 20 exercise movements. 
-
+The purpose of this study is to train a model that could identify a specific exercise movement based on kinematic (accelerometer and gyroscopic) measurements and evaluate its predictive ability on a test set of 20 observations. The study determined relevant features extracted from a set of 160 candidate features that were associated with kinematic movements, ultimately arriving at a set of [~50] features as viable predictors for model fitting. In the course of identification, a set of highly correlated predictors were flagged out of the set of viable predictors to better inform model selection decisions regarding bias-reduction/variance-increase trade-offs at a later stage, for either Principal Components Analysis (PCA) or outright elimination. The study then trained three models corresponding to datasets that (1) included, (2) excluded, and (3) preprocessing the predictors via PCA. To achieve cross-validation and an evaluation stage prior to the ultimate validation of the model, the original test set was set aside as the validation set and in its stead 40% of the training model was partitioned to serve as a preliminary test set. The training parameters of the three aforementioned models were then set set for an out of sample error of at most 95%. The random forest algorithm was chosen because of it accuracy in prediction, which is the primary objective of the study. The downsides involved with random forest was considered, but ultimately overridden since in at least the PCA model interpretability would be an issue regardless, speed is not an issue, and parameter-setting and cross validation measures had already been taken to ameliorate overfitting. After the preliminary internal testing, the accuracy of three models was then compared and one was selected to identify the 20 exercise movements. 
  
+``` {r readin, echo = FALSE}
+# Step 0. Load libraries, find/create folders, download and extract raw data, 
+# and read into local tables
+
+###### pre-name input directories
+dir_proj <- "./Project"
+dir_data <- paste(dir_proj, "/data", sep = "")
+
+###### create variable and path names for csv
+liftFormTrain_csv <- "liftFormTrain.csv"
+liftFormTest_csv <- "liftFormTest.csv"
+trainUrl <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+testUrl <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+liftFormTrain_path <- paste(dir_data, "/", liftFormTrain_csv, sep = "")
+liftFormTest_path <- paste(dir_data, "/", liftFormTest_csv, sep = "")
+
+###### find & create project directories and input directories within
+if(!file.exists(dir_proj)) { 
+        dir.create(dir_proj)
+}        
+if(!file.exists(dir_data)) { 
+        dir.create(dir_data)
+}
+
+###### download & read data into data frames
+download.file(trainUrl, destfile = liftFormTrain_path, method = "curl")
+download.file(testUrl, destfile = liftFormTest_path, method = "curl")
+
+liftTrain <- read.csv(liftFormTrain_path)
+liftTest <- read.csv(liftFormTest_path)
+```
+## Synopsis of the Data
+
+Upon a cursory glance of the data using ```str()```, there were nearly 20 thousand observations in the original training set across 160 fields. str() also revealed 
