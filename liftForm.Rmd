@@ -92,7 +92,7 @@ test_pct <- label_percent()(1 - part_prop)
 ## Assumptions, Preparation, and Procedure
 
 To preserve the test set as the ultimate validation set, the study then assigned `liftTest_trim`
-to validation set `liftVal` and partitioned `liftTrain_factor` into the actual training (`liftTrain_ML` comprising `r train_pct` of the original) and test (`liftTest_ML` comprising `r test_pct`) sets.
+to validation set `liftVal` and partitioned `liftTrain_factor` into the actual training (`liftTrain_ML` comprising `r train_pct` of the original) and test (`liftTest_ML` comprising `r test_pct`) sets, to which the study will hence refer as the cleaned datasets. 
 
 Screening for high correlates between the predictors and the estimand and plotting the results show a few incidences above 0.2 in either direction and a mode of 0, meaning that none of the 52 remaining variables, when taken as a sole input, predict the estimand well. 
 ``` {r estCorr,echo=FALSE,message=FALSE}
@@ -115,7 +115,7 @@ prelimLM_adjRsq <- round(prelimLM_summ$adj.r.squared, 3)
 
 Filtering on these `r nrow_hi_corr` columns and performing a linear regression yields an adjusted R^2 of `r prelimLM_adjRsq`, signifying that even the five highest correlates when taken together, can explain very little of the variation within the estimator and confirming our hypothesis that proceeding with merely a linear regression would yield very poor results. 
 
-Turning to intra-feature correlations yields a heatmap that implies high correlates among the potential features, which lends credence to the potential for the predictors to be combined and thereby reduced in number via Principal Components Analysis in a way that would remove as much bias as they would otherwise do if included in their entirety at face value, but without the attendant increases to variance. 
+Turning to intra-feature correlations yields a heatmap that implies high correlates among the potential features, which lends credence to the potential for the predictors to be either eliminated, or combined and thereby reduced in number via Principal Components Analysis in a way that would remove as much bias as they would otherwise do if included in their entirety at face value, but without the attendant increases to variance. 
 ``` {r featCorr,echo=FALSE}
 # intra-feature correlations
 corr_Mx <- cor(as.matrix(liftTrain_ML[, -classeColInd]), method = c("spearman"))
@@ -126,12 +126,60 @@ hi_intra_corr <- which(corr_Mx > 0.8, arr.ind = TRUE)
 hi_corr_excl <- c(hi_intra_corr[, 1], classeColInd)
 ```
 
-use Principal Components Analysis to winnow redundant predictors; apply transformation to training, testing, and validation sets; because the optimal number of components is unknown, the study instead opted; to specify a threshold variance for the preprocessing to retain; the validating set's 53rd column was excluded as irrelevant
-
+Accordingly the high intra-feature correlates above 0.8 were flagged. Theoretically the main ways to deal with these correlates are to (a) exclude them entirely, or (b) leave them in, but streamline their contribution to the model through PCA. Next, principal Components Analysis was performed in an attempt to winnow redundant predictors and  the transformation was applied in like manner to the training, testing, and validation sets after excluding the __classe__ column in each (although it should be noted the last's 53rd column was not __classe__, but row number and therefore still excluded from the PCA). Because the optimal number of components was unknown, the study instead opted to specify a threshold variance for the preprocessing to retain, as shown in the code below:
 ``` {r pca,echo=TRUE}
-liftTrain_prePCA <- preProcess(liftTrain_ML[, -classeColInd], method = "pca", thresh = 0.95)
+liftTrain_prePCA <- preProcess(liftTrain_ML[, -classeColInd], method = "pca", thresh = 0.999)
 liftTrain_PCA <- predict(liftTrain_prePCA, liftTrain_ML[, -classeColInd])
 liftTest_PCA <- predict(liftTrain_prePCA, liftTest_ML[, -classeColInd])
 liftVal_PCA <- predict(liftTrain_prePCA, liftVal[, -classeColInd])
 ```
 
+The resulting component fields had a rank of 47, which is somewhat of a reduction, but perhaps not substantial. 
+
+Finally, the random forest training was performed on: (1) the cleaned data; (2) the cleaned data with high intra-feature correlates excluded; and (3) the cleaned data preprocessed using PCA. 
+```{r randFor,echo=TRUE}
+n_grove <- 500
+allVar_rfFit <- randomForest(
+        keep.forest = TRUE, proximity = TRUE, ntree = n_grove,
+        x = liftTrain_ML[, -classeColInd], y = liftTrain_ML$classe,
+        xtest = liftTest_ML[, -classeColInd], ytest = liftTest_ML$classe 
+)
+exCorr_rfFit <- randomForest(
+        keep.forest = TRUE, proximity = TRUE, ntree = n_grove, 
+        x = liftTrain_ML[, -hi_corr_excl], y = liftTrain_ML$classe,
+        xtest = liftTest_ML[, -hi_corr_excl], ytest = liftTest_ML$classe
+)
+allVar_PCA_rfFit <- randomForest(
+        keep.forest = TRUE, proximity = TRUE, ntree = n_grove,
+        x = liftTrain_PCA, y = liftTrain_ML$classe,
+        xtest = liftTest_PCA, ytest = liftTest_ML$classe
+)
+```
+
+``` {r errPred,echo = TRUE}
+df_error <- data.frame(
+        modelName = c("Including All Variables",
+                          "Excluding High Correlates",
+                          "PCA After Incl. All Variables"
+        ),
+        modelError = c(
+                round(sum(allVar_rfFit$test$confusion[, 'class.error']), 5),
+                round(sum(exCorr_rfFit$test$confusion[, 'class.error']), 5),
+                round(sum(allVar_PCA_rfFit$test$confusion[, 'class.error']), 5)
+        )
+)
+df_error
+
+exCorrPred <- predict(exCorr_rfFit, liftVal[, -hi_corr_excl])
+allVarPred <- predict(allVar_rfFit, liftVal[, -classeColInd])
+allVarPCAPred <- predict(allVar_PCA_rfFit, liftVal_PCA)
+
+df_pred <- data.frame(cbind(allVarPred, exCorrPred, allVarPCAPred))
+df_pred <- sapply(df_pred, factor, labels = classeLabels)
+```
+
+``` {r predSumm,echo=FALSE,results="asis"}
+x_df_pred <- xtable(df_pred)
+print(x_df_pred, type = "html")
+
+```
