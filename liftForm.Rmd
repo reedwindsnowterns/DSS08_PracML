@@ -19,7 +19,9 @@ rand <- rnorm(1)
 Submitted by Andrew Chang on `r dateSubmit` for the Johns Hopkins Practical Machine Learning course
 
 ## Overview of the Study 
-The purpose of this study was to train a model that could identify a specific exercise movement based on kinematic (accelerometer and gyroscopic) measurements and evaluate its predictive ability on a test set of 20 observations. The study determined relevant features extracted from a set of 160 candidate features that were associated with kinematic movements, ultimately arriving at a set of 52 features as viable predictors for model fitting. In the course of identification, a set of highly correlated predictors were flagged out of the set of viable predictors to better inform model selection decisions regarding bias-reduction/variance-increase trade-offs at a later stage, for either Principal Components Analysis (PCA) or outright elimination. The study then trained three models corresponding to datasets that (1) included all variables, (2) excluded high-correlate variables, and (3) preprocessing the variables via PCA. To achieve cross-validation and an evaluation stage prior to the ultimate validation of the model, the original test set was set aside as the validation set and in its stead 40% of the training model was partitioned to serve as a preliminary test set. The training parameters of the three aforementioned models were then set for an out of sample error of at most 5%. Since the final validation of models is comprised of 20 trials, the predicted error rate would likely have to be less than 5% for the model to reliably predict all 20 trials. However, the PCA-preprocessed predictors might not be as successful at eliminating bias and the error rate could be an order of magnitude higher. The random forest algorithm was chosen because of its accuracy in prediction, which was the primary objective of the study. The downsides involved with random forest algorithm were considered, but ultimately overridden since in at least the PCA model interpretability would be an issue regardless, speed is not an issue, and parameter-setting and cross validation measures had already been taken to ameliorate overfitting. After the preliminary internal testing, the accuracy of three models was then compared and one was selected to identify the 20 exercise movements. 
+The purpose of this study was to train a model that could identify a specific exercise movement based on kinematic (accelerometer and gyroscopic) measurements and evaluate its predictive ability on a test set of 20 observations. The study determined relevant features extracted from a set of 160 candidate features that were associated with kinematic movements, ultimately arriving at a set of 52 features as viable predictors for model fitting. In the course of identification, a set of highly correlated predictors were flagged out of the set of viable predictors to better inform model selection decisions regarding bias-reduction/variance-increase trade-offs at a later stage, for either Principal Components Analysis (PCA) or outright elimination. The study then trained three models corresponding to datasets that (1) included all variables, (2) excluded high-correlate variables, and (3) preprocessing the variables via PCA. To achieve cross-validation and an evaluation stage prior to the ultimate validation of the model, the original test set was set aside as the validation set and in its stead 40% of the training model was partitioned to serve as a preliminary test set. The training parameters of the three aforementioned models were then set for an out of sample error of at most 5%. Since the final validation of models is comprised of 20 trials, the predicted error rate would likely have to be less than 5% for the model to reliably predict all 20 trials. However, the PCA-preprocessed predictors might not be as successful at eliminating bias and the error rate could be an order of magnitude higher. 
+
+A casual hypothesis of the study is that simple linear regression would be insufficient to categorize the movement. The random forest algorithm was chosen because of its accuracy in prediction, which was the primary objective of the study. The downsides involved with random forest algorithm were considered, but ultimately overridden since in at least the PCA model interpretability would be an issue regardless, speed is not an issue, and parameter-setting and cross validation measures had already been taken to ameliorate overfitting. After the preliminary internal testing, the accuracy of three models was then compared and one was selected to identify the 20 exercise movements. 
  
 ``` {r readin, echo = FALSE}
 # Step 0. Load libraries, find/create folders, download and extract raw data, 
@@ -54,7 +56,7 @@ liftTest <- read.csv(liftFormTest_path)
 n_complete <- sum(complete.cases(liftTrain))
 ```
 ## Synopsis of the Data and Cleaning Steps
-Upon a cursory glance of the data using `str()`, the study found there were nearly 20 thousand observations in the original training set across 160 fields. `str()` also revealed that many of these fields contained either empty strings or `NA`s which in addition to the poor discrimination that a field with low variance offers most models, would probably cause the random forest algorithm some problems. Several of these fields were non-numeric and if they could not be factorized, they would offer more noise than signal to the random forest algorithm the study would be implementing. Similarly, the fields `X` (observation number), `user_name` and those containing `timestamp` and `window` were deemed has metrics that were not useful toward distinguishing exercise motions across research subjects or time of recording. In addition `complete.cases()` shows that owing to the missing values, only `r n_complete` (just over 2%) of observations were complete. To deal with these and other problematic fields, the study produced a series of 160-long boolean vectors to denote which fields to retain, as well as note the index of the estimand, __classe__. Filtering on these boolean vectors, the training and testing sets were reduced to 53 fields, denoted `liftTrain_trim` and `liftTest_trim`. __classe__ from the training set was then factorized, with its labels re-attached and its index within the reduced data frame noted again for future reference. The training set with the factorized __classe__ variable was then saved as `liftTrain_factor`. 
+Upon a cursory glance of the data using `str()`, the study found there were nearly 20 thousand observations in the original training set across 160 fields. `str()` also revealed that many of these fields contained either empty strings or `NA`s which in addition to the poor discrimination that a field with low variance offers most models, would probably cause the random forest algorithm some problems. Several of these fields were non-numeric and if they could not be factorized, they would offer more noise than signal to the random forest algorithm the study would be utilizing. Similarly, the fields `X` (observation number), `user_name` and those containing `timestamp` and `window` were deemed has metrics that were not useful toward distinguishing exercise motions across research subjects or time of recording. In addition `complete.cases()` showed that owing to the missing values, only `r n_complete` (just over 2%) of observations were complete. To deal with these and other problematic fields, the study produced a series of 160-long boolean vectors to denote which fields to retain, as well as note the index of the estimand, __classe__. Filtering on these boolean vectors, the original training and testing sets were reduced to 53 fields (including __classe__), denoted `liftTrain_trim` and `liftTest_trim`. Next, __classe__ from the training set was factorized, with its labels re-attached and its index within the reduced data frame noted again for future reference. The training set with the factorized __classe__ variable was then saved as `liftTrain_factor`. 
 
 ``` {r cleandata, echo = FALSE}
 # hinarm <- which(colMeans(is.na(liftTrain)) > 0.95)
@@ -92,9 +94,9 @@ test_pct <- label_percent()(1 - part_prop)
 To preserve the test set as the ultimate validation set, the study then assigned `liftTest_trim`
 to validation set `liftVal` and partitioned `liftTrain_factor` into the actual training (`liftTrain_ML` comprising `r train_pct` of the original) and test (`liftTest_ML` comprising `r test_pct`) sets, to which the study will hence refer as the cleaned datasets. 
 
-Screening for high correlates between the predictors and the estimand and plotting the results show a few incidences above 0.2 in either direction and a mode of 0, meaning that none of the 52 remaining variables, when taken as a sole input, predict the estimand well.
+Screening for high correlates between the predictors and the estimand and plotting the results showed a few incidences above 0.2 in either direction and a mode of 0, meaning that none of the 52 remaining variables, when taken as a sole input, predicted the estimand well.
 
-``` {r estCorr,echo=FALSE,message=FALSE}
+``` {r estCorr,echo=FALSE,message=FALSE,fig.height=3,fig.width=7}
 # estimand-to-feature correlations
 corr_screen <- data.frame(
         colNum = 1:(classeColInd - 1),
@@ -112,9 +114,9 @@ prelimLM_summ <- summary(prelimLM_fit)
 prelimLM_adjRsq <- round(prelimLM_summ$adj.r.squared, 3)
 ```
 
-Filtering on these `r nrow_hi_corr` columns and performing a linear regression yields an adjusted R^2^ of `r prelimLM_adjRsq`, signifying that even the `r nrow_hi_corr` highest correlates when taken together, explained very little of the variation within the estimator and confirming our hypothesis that proceeding with merely a linear regression would yield very poor results. Turning to intra-feature correlations yields a heatmap that implies high correlates among the potential features, which lends credence to the potential for the predictors to be either eliminated, or combined and thereby reduced in number via Principal Components Analysis in a way that would remove as much bias as they would otherwise have if included in their entirety at face value, but without the attendant increases to variance. 
+Filtering on these `r nrow_hi_corr` columns and performing a linear regression yielded an adjusted R^2^ of `r prelimLM_adjRsq`, signifying that even when taken together, the `r nrow_hi_corr` highest correlates explained very little of the variation within the estimator and confirming our hypothesis that proceeding with merely a linear regression would yield very poor results. Turning to intra-feature correlations yielded a heatmap that implies high correlates among the potential features, which lent credence to the potential for the predictors to be either eliminated, or combined and thereby reduced in number via Principal Components Analysis in a way that would remove as much bias as they would otherwise have if included in their entirety at face value, but without the attendant increases to variance. 
 
-``` {r featCorr,echo=FALSE}
+``` {r featCorr,echo=FALSE,fig.height=3,fig.width=7}
 # intra-feature correlations
 corr_Mx <- cor(as.matrix(liftTrain_ML[, -classeColInd]), method = c("spearman"))
 diag(corr_Mx) <- 0
@@ -124,7 +126,7 @@ hi_intra_corr <- which(corr_Mx > 0.8, arr.ind = TRUE)
 hi_corr_excl <- c(hi_intra_corr[, 1], classeColInd)
 ```
 
-Accordingly the high intra-feature correlates above 0.8 were flagged. Theoretically the main ways to deal with these correlates are to (a) exclude them entirely, or (b) leave them in, but streamline their contribution to the model through PCA. Next, principal Components Analysis was performed in an attempt to winnow redundant predictors. The transformation was applied in like manner to the training, testing, and validation sets after excluding the __classe__ column in each (although it should be noted the validation set's 53rd column was not __classe__, but row number and therefore excluded from the PCA to reduce noise). Because the optimal number of components was unknown, the study instead opted to specify a threshold variance for the preprocessing to retain, as shown in the code below:
+Accordingly the high intra-feature correlates above 0.8 were flagged. Theoretically the main ways to deal with these correlates were to (a) exclude them entirely, or (b) leave them in, but streamline their contribution to the model through PCA. Next, principal Components Analysis was performed in an attempt to winnow redundant predictors. The transformation was applied in like manner to the training, testing, and validation sets after excluding the __classe__ column in each (although it should be noted the validation set's 53rd column was not __classe__, but row number and therefore excluded from the PCA to reduce noise). Because the optimal number of components was unknown, the study instead opted to specify a threshold variance for the preprocessing to retain, as shown in the code below:
 ``` {r pca,echo=TRUE}
 liftTrain_prePCA <- preProcess(liftTrain_ML[, -classeColInd], method = "pca", thresh = 0.999)
 liftTrain_PCA <- predict(liftTrain_prePCA, liftTrain_ML[, -classeColInd])
@@ -132,10 +134,10 @@ liftTest_PCA <- predict(liftTrain_prePCA, liftTest_ML[, -classeColInd])
 liftVal_PCA <- predict(liftTrain_prePCA, liftVal[, -classeColInd])
 ```
 
-The resulting component field matrix had a rank of 47, which is somewhat of a reduction, but perhaps not substantial as desired. 
+The resulting component field matrix had a rank of 47, which is somewhat of a reduction, but perhaps not as substantial as desired. 
 
 # Model Results and Selection
-Finally, the random forest training was performed on: (1) the cleaned data; (2) the cleaned data excluding high intra-feature correlates; and (3) the cleaned data preprocessed using PCA. 
+Finally, the random forest training was performed on: (1) the cleaned data set; (2) the cleaned data excluding high intra-feature correlates; and (3) the cleaned data preprocessed using PCA. 
 ```{r randFor,echo=TRUE}
 n_grove <- 500
 allVar_rfFit <- randomForest(
@@ -173,23 +175,34 @@ x_df_error <- xtable(df_error)
 kable(x_df_error, format = "markdown")
 ```
 
-The model trained with the PCA-preprocessed matrix yielded models with much higher error at 0.102, almost three times that of the non-PCA version of the matrix at 0.035, and almost four times the 0.027 rate of the non-PCA version which simply excluded the high correlate features. Therefore, the study proceeded to select the lowest-error model which was trained on just the non-high-correlate features of the cleaned training set, but also ran predictions using the other two models, with the following results: 
+The model trained with the PCA-preprocessed matrix yielded models with much higher error at 0.102, almost three times that of the non-PCA version of the matrix at 0.035, and almost four times the 0.027 rate of the non-PCA version which simply excluded the high correlate features. Therefore, the study selected the lowest-error model which was trained on just the non-high-correlate features of the cleaned training set, but also proceeded to run predictions using the other two models, with the following results: 
 
 ``` {r predSumm,echo=FALSE,results="asis"}
 exCorrPred <- predict(exCorr_rfFit, liftVal[, -hi_corr_excl])
 allVarPred <- predict(allVar_rfFit, liftVal[, -classeColInd])
 allVarPCAPred <- predict(allVar_PCA_rfFit, liftVal_PCA)
 
-df_pred <- data.frame(cbind(1:20, allVarPred, exCorrPred, allVarPCAPred))
+df_pred <- data.frame(cbind(allVarPred, exCorrPred, allVarPCAPred))
 df_pred <- sapply(df_pred, factor, labels = classeLabels)
+df_pred <- data.frame(cbind(trial = 1:20, df_pred))
 
 x_df_pred <- xtable(df_pred)
 kable(x_df_pred, format = "markdown")
 ```
 
 ## Discussion and Conclusions
-While both the all-variable and high correlate exclusion models were able to predict all 20 trial movements correctly, the high correlate exclusion model would probably be more reliable in larger volume trials, whereas the PCA-preprocessed model, although projected to miss at least two predictions (10% x 20), it actually overperformed by only miscategorizing one. 
+While both the all-variable and high correlate exclusion models were able to predict all 20 trial movements correctly, the lower error rate of the high correlate exclusion model would probably lend it to being more reliable in larger volume trials, whereas the PCA-preprocessed model, although projected to miss at least two predictions (10% x 20), actually overperformed in only miscategorizing one. 
 
-Nevertheless, in this case because it did not sufficiently retain the desired bias reduction, the model based on preprocessing with Principal Components Analysis was not successful. The reduction of the net 6 variables from the all-variable model down to 47 components did not sufficiently reduce the complexity to warrant the tradeoff. One can infer that the other 47 components still carried sufficient noise that made discrimination between similar movements like B (throwing the elbows to the front) and C (lifting the dumbbell only halfway), both movements that bring the dumbbell forward, difficult. 
+Nevertheless, in this case because it did not sufficiently retain the desired bias reduction, the model based on preprocessing with Principal Components Analysis was not successful. The reduction of the net 5 variables from the all-variable model down to 47 components did not sufficiently reduce the complexity to warrant the tradeoff. One can infer that the other 47 components still carried sufficient noise that made discrimination between similar movements like B (throwing the elbows to the front) and C (lifting the dumbbell only halfway)--both movements that bring the dumbbell forward--difficult. 
 
-The study also demonstrates that often the noise added by highly correlated predictors can severely bias a model (in this case it yielded error 25% higher than if they had been excluded altogether) and it is important for data scientists to deal with it properly. Under the objectives of the study, the proper measure was to exclude them outright. Perhaps increasing the size of the partition dedicated to the training set (setting `lifttrain_ML` to 75%) could have improved the PCA model, but it is doubtful that the improvement would reduce the error to below the 5% as desired. 
+The study also demonstrated that often the noise added by highly correlated predictors can severely increase the variance of a model (in this case it yielded error 25% higher than if they had been excluded altogether) and it is important for data scientists to deal with correlates properly. Under the objectives of the study, the proper measure was to exclude them outright. Perhaps increasing the size of the partition dedicated to the training set (setting `lifttrain_ML` to 75%) could have improved the PCA model, but it is doubtful that the improvement would reduce the error to below the 5% as desired. 
+
+\newpage
+# Appendix
+
+## Exhibit 1: Cross-validation and Out-of-sample Error Rates
+``` {r predSumm,echo=FALSE,results="asis"}
+allVar_rfFit
+exCorr_rfFit
+allVar_PCA_rfFit
+```
