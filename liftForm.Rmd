@@ -5,8 +5,8 @@ output:
   pdf_document: default
 ---
 ```{r setoptions,echo=FALSE,include=FALSE}
-library(caret); library(tidyverse); library(randomForest)
-library(knitr); library(xtable)
+library(caret); library(tidyverse); library(randomForest); library(scales)
+library(knitr); library(xtable); library(corrplot)
 library(grid); library(gridExtra)
 options(xtable.comment = FALSE)
 ```
@@ -51,7 +51,87 @@ download.file(testUrl, destfile = liftFormTest_path, method = "curl")
 
 liftTrain <- read.csv(liftFormTrain_path)
 liftTest <- read.csv(liftFormTest_path)
+n_complete <- sum(complete.cases(liftTrain))
 ```
-## Synopsis of the Data
+## Synopsis of the Data and Cleaning Steps
 
-Upon a cursory glance of the data using ```str()```, there were nearly 20 thousand observations in the original training set across 160 fields. str() also revealed 
+Upon a cursory glance of the data using `str()`, the study found there were nearly 20 thousand observations in the original training set across 160 fields. `str()` also revealed that many of these fields contained either empty strings or `NA`s which in addition to the poor discrimination that a field with low variance offers most models, would probably cause the random forest algorithm some problems. Several of these fields were non-numeric and if they could not be factorized, they would offer more noise than signal to the random forest algorithm the study would be undertaking. Similarly, the fields `X` (observation number), `user_name` and those containing `timestamp` and `window` were deemed has metrics that were not useful toward distinguishing exercise motions across research subjects or time of recording. In addition `complete.cases()` shows that owing to the missing values, only `r n_complete` (just over 2%) of observations were complete. To deal with these and other problematic fields, the study produced a series of 160-long boolean vectors to denote which fields to retain, as well as note the index of the estimand, __classe__. Filtering on these boolean vectors, the training and testing sets were reduced to 53 fields, denoted `liftTrain_trim` and `liftTest_trim`. __classe__ from the training set was then factorized, with its labels re-attached and its index within the reduced data frame noted again for future reference. The training set with the factorized __classe__ variable was then saved as `liftTrain_factor`. 
+
+``` {r cleandata, echo = FALSE}
+# hinarm <- which(colMeans(is.na(liftTrain)) > 0.95)
+lowvar <- nearZeroVar(liftTrain, saveMetrics = TRUE)
+
+non_pred_bool <- grepl("user_name|timestamp|window|^X", names(liftTrain))
+non_num_bool <- !sapply(liftTrain, is.numeric)
+hinarm_bool <- colMeans(is.na(liftTrain)) > 0.95
+lowvar_bool <- lowvar$nzv
+classe_bool <- grepl("classe", names(liftTrain))
+include_bool <- ! (non_pred_bool | non_num_bool | hinarm_bool | lowvar_bool) | classe_bool
+
+liftTrain_trim <- liftTrain[, include_bool]
+liftTest_trim <- liftTest[, include_bool]
+
+classeLabels <- levels(as.factor(liftTrain$classe))
+liftTrain_factor <- data.frame(liftTrain_trim)
+liftTrain_factor$classe <- factor(liftTrain$classe, 
+                                  labels = classeLabels)
+classeColInd <- which(names(liftTrain_factor) == "classe")
+```
+
+``` {r trainpartition, echo=FALSE,include=FALSE}
+liftVal <- liftTest_trim
+part_prop <- 0.6
+set.seed(421337)
+liftPart <- createDataPartition(y = liftTrain_factor$classe, p = part_prop, list = FALSE)
+liftTrain_ML <- liftTrain_factor[liftPart, ]
+liftTest_ML <- liftTrain_factor[-liftPart, ]
+dim(liftTrain_ML); dim(liftTest_ML)
+train_pct <- label_percent()(part_prop)
+test_pct <- label_percent()(1 - part_prop)
+```
+## Assumptions, Preparation, and Procedure
+
+To preserve the test set as the ultimate validation set, the study then assigned `liftTest_trim`
+to validation set `liftVal` and partitioned `liftTrain_factor` into the actual training (`liftTrain_ML` comprising `r train_pct` of the original) and test (`liftTest_ML` comprising `r test_pct`) sets.
+
+Screening for high correlates between the predictors and the estimand and plotting the results show a few incidences above 0.2 in either direction and a mode of 0, meaning that none of the 52 remaining variables, when taken as a sole input, predict the estimand well. 
+``` {r estCorr,echo=FALSE,message=FALSE}
+# estimand-to-feature correlations
+corr_screen <- data.frame(
+        colNum = 1:(classeColInd - 1),
+        field = names(liftTrain_ML[, -classeColInd]),
+        correl = cor(liftTrain_ML[, -classeColInd], as.numeric(liftTrain_ML$classe))
+)
+ggplot(data.frame(corr_screen), aes(correl)) + 
+        geom_histogram()
+hi_corr <- corr_screen %>% 
+        filter(abs(correl) > 0.2)
+nrow_hi_corr <- nrow(hi_corr)
+liftTrain_hiCorr <- cbind(liftTrain_ML[, hi_corr$colNum], classe = liftTrain_ML$classe)
+prelimLM_fit <- lm(as.numeric(classe) ~ ., data = liftTrain_hiCorr)
+prelimLM_summ <- summary(prelimLM_fit)
+prelimLM_adjRsq <- round(prelimLM_summ$adj.r.squared, 3)
+```
+
+Filtering on these `r nrow_hi_corr` columns and performing a linear regression yields an adjusted R^2 of `r prelimLM_adjRsq`, signifying that even the five highest correlates when taken together, can explain very little of the variation within the estimator and confirming our hypothesis that proceeding with merely a linear regression would yield very poor results. 
+
+Turning to intra-feature correlations yields a heatmap that implies high correlates among the potential features, which lends credence to the potential for the predictors to be combined and thereby reduced in number via Principal Components Analysis in a way that would remove as much bias as they would otherwise do if included in their entirety at face value, but without the attendant increases to variance. 
+``` {r featCorr,echo=FALSE}
+# intra-feature correlations
+corr_Mx <- cor(as.matrix(liftTrain_ML[, -classeColInd]), method = c("spearman"))
+diag(corr_Mx) <- 0
+palette = colorRampPalette(c("turquoise", "white", "salmon")) (20)
+heatmap(x = corr_Mx, col = palette, symm = TRUE)
+hi_intra_corr <- which(corr_Mx > 0.8, arr.ind = TRUE)
+hi_corr_excl <- c(hi_intra_corr[, 1], classeColInd)
+```
+
+use Principal Components Analysis to winnow redundant predictors; apply transformation to training, testing, and validation sets; because the optimal number of components is unknown, the study instead opted; to specify a threshold variance for the preprocessing to retain; the validating set's 53rd column was excluded as irrelevant
+
+``` {r pca,echo=TRUE}
+liftTrain_prePCA <- preProcess(liftTrain_ML[, -classeColInd], method = "pca", thresh = 0.95)
+liftTrain_PCA <- predict(liftTrain_prePCA, liftTrain_ML[, -classeColInd])
+liftTest_PCA <- predict(liftTrain_prePCA, liftTest_ML[, -classeColInd])
+liftVal_PCA <- predict(liftTrain_prePCA, liftVal[, -classeColInd])
+```
+
