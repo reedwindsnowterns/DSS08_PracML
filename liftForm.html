@@ -1873,8 +1873,8 @@ for(i in 1:3) {
 </table>
 <div id="discussion-and-conclusions" class="section level2">
 <h2>Discussion and Conclusions</h2>
-<p>While both the all-variable and high correlate exclusion models were able to predict all 20 trial movements correctly, the lower error rate of the high correlate exclusion model would probably lend it to being more reliable in larger volume trials, whereas the PCA-preprocessed model, although projected to miss at least two predictions (10% x 20), actually overperformed in only miscategorizing one.</p>
-<p>Nevertheless, in this case because it did not sufficiently retain the desired bias reduction, the model based on preprocessing with Principal Components Analysis was not successful. The reduction of the net 5 variables from the all-variable model down to 47 components did not sufficiently reduce the complexity to warrant the tradeoff. One can infer that the other 47 components still carried sufficient noise that made discrimination between similar movements like B (throwing the elbows to the front) and C (lifting the dumbbell only halfway)–both movements that bring the dumbbell forward–difficult.</p>
+<p>While both the all-variable and high correlate exclusion models were able to predict all 20 trial movements correctly, the lower error rate of the high correlate exclusion model would probably lend it to being more reliable in larger volume trials. The PCA-preprocessed model, although projected to have the highest error rate, actually also correctly categorized all trial movements.</p>
+<p>Nevertheless, in this case because it did not sufficiently retain the desired bias reduction, the model based on preprocessing with Principal Components Analysis was not as successful as initially wished. The reduction of the net 5 variables from the all-variable model down to 47 components did not sufficiently reduce the complexity to warrant the tradeoff. One can infer that the other 47 components still carried sufficient noise that made discrimination between similar movements like B (throwing the elbows to the front) and C (lifting the dumbbell only halfway)–both movements that bring the dumbbell forward–difficult, which it failed to do in other trials not associated with the seed presented in these trials.</p>
 <p>The study also demonstrated that often the noise added by highly correlated predictors can severely increase the variance of a model (in this case it yielded error 25% higher than if they had been excluded altogether) and it is important for data scientists to deal with correlates properly. Under the objectives of the study, the proper measure was to exclude them outright. Perhaps increasing the size of the partition dedicated to the training set (setting <code>lifttrain_ML</code> to 75%) could have improved the PCA model, but it is doubtful that the improvement would reduce the error to below the 5% as desired.</p>
 <div style="page-break-after: always;"></div>
 </div>
@@ -1883,15 +1883,75 @@ for(i in 1:3) {
 <h1>Appendix</h1>
 <div id="exhibit-1-sample-out-of-sample-error-rates-from-randomforest-output" class="section level2">
 <h2>Exhibit 1: Sample Out-of-sample Error Rates from <code>randomForest</code> output</h2>
-<p>Call: randomForest(x = liftTrain_ML[, -classeColInd], y = liftTrain_ML<span class="math inline">\(classe, xtest = liftTest_ML[, -classeColInd], ytest = liftTest_ML\)</span>classe, ntree = n_grove, proximity = TRUE, keep.forest = TRUE) Type of random forest: classification Number of trees: 250 No. of variables tried at each split: 7</p>
-<pre><code>    OOB estimate of  error rate: 0.73%</code></pre>
-<p>Confusion matrix: A B C D E class.error A 3344 4 0 0 0 0.001194743 B 12 2262 5 0 0 0.007459412 C 0 21 2028 5 0 0.012658228 D 0 1 31 1896 2 0.017616580 E 0 0 1 4 2160 0.002309469 Test set error rate: 0.74% Confusion matrix: A B C D E class.error A 2231 1 0 0 0 0.0004480287 B 15 1498 5 0 0 0.0131752306 C 0 17 1349 2 0 0.0138888889 D 0 0 15 1270 1 0.0124416796 E 0 0 0 2 1440 0.0013869626</p>
-<p>Call: randomForest(x = liftTrain_ML[, -hi_corr_excl], y = liftTrain_ML<span class="math inline">\(classe, xtest = liftTest_ML[, -hi_corr_excl], ytest = liftTest_ML\)</span>classe, ntree = n_grove, proximity = TRUE, keep.forest = TRUE) Type of random forest: classification Number of trees: 250 No. of variables tried at each split: 6</p>
-<pre><code>    OOB estimate of  error rate: 0.59%</code></pre>
-<p>Confusion matrix: A B C D E class.error A 3343 4 0 0 1 0.0014934289 B 7 2267 5 0 0 0.0052654673 C 0 16 2034 4 0 0.0097370983 D 0 0 26 1900 4 0.0155440415 E 0 0 0 2 2163 0.0009237875 Test set error rate: 0.55% Confusion matrix: A B C D E class.error A 2232 0 0 0 0 0.000000000 B 13 1501 4 0 0 0.011198946 C 0 8 1357 3 0 0.008040936 D 0 0 12 1273 1 0.010108865 E 0 0 0 2 1440 0.001386963</p>
-<p>Call: randomForest(x = liftTrain_PCA, y = liftTrain_ML<span class="math inline">\(classe, xtest = liftTest_PCA, ytest = liftTest_ML\)</span>classe, ntree = n_grove, proximity = TRUE, keep.forest = TRUE) Type of random forest: classification Number of trees: 250 No. of variables tried at each split: 6</p>
-<pre><code>    OOB estimate of  error rate: 2.42%</code></pre>
-<p>Confusion matrix: A B C D E class.error A 3338 5 2 2 1 0.002986858 B 52 2196 25 3 3 0.036419482 C 1 29 2005 18 1 0.023855891 D 6 1 91 1825 7 0.054404145 E 2 16 11 9 2127 0.017551963 Test set error rate: 2.57% Confusion matrix: A B C D E class.error A 2226 3 0 2 1 0.002688172 B 38 1468 11 0 1 0.032938076 C 2 25 1335 2 4 0.024122807 D 1 2 75 1205 3 0.062986003 E 2 18 9 3 1410 0.022191401</p>
+<pre><code>## 
+## Call:
+##  randomForest(x = liftTrain_ML[, -classeColInd], y = liftTrain_ML$classe,      xtest = liftTest_ML[, -classeColInd], ytest = liftTest_ML$classe,      ntree = n_grove, proximity = TRUE, keep.forest = TRUE) 
+##                Type of random forest: classification
+##                      Number of trees: 250
+## No. of variables tried at each split: 7
+## 
+##         OOB estimate of  error rate: 0.73%
+## Confusion matrix:
+##      A    B    C    D    E class.error
+## A 3344    4    0    0    0 0.001194743
+## B   12 2262    5    0    0 0.007459412
+## C    0   21 2028    5    0 0.012658228
+## D    0    1   31 1896    2 0.017616580
+## E    0    0    1    4 2160 0.002309469
+##                 Test set error rate: 0.74%
+## Confusion matrix:
+##      A    B    C    D    E  class.error
+## A 2231    1    0    0    0 0.0004480287
+## B   15 1498    5    0    0 0.0131752306
+## C    0   17 1349    2    0 0.0138888889
+## D    0    0   15 1270    1 0.0124416796
+## E    0    0    0    2 1440 0.0013869626</code></pre>
+<pre><code>## 
+## Call:
+##  randomForest(x = liftTrain_ML[, -hi_corr_excl], y = liftTrain_ML$classe,      xtest = liftTest_ML[, -hi_corr_excl], ytest = liftTest_ML$classe,      ntree = n_grove, proximity = TRUE, keep.forest = TRUE) 
+##                Type of random forest: classification
+##                      Number of trees: 250
+## No. of variables tried at each split: 6
+## 
+##         OOB estimate of  error rate: 0.59%
+## Confusion matrix:
+##      A    B    C    D    E  class.error
+## A 3343    4    0    0    1 0.0014934289
+## B    7 2267    5    0    0 0.0052654673
+## C    0   16 2034    4    0 0.0097370983
+## D    0    0   26 1900    4 0.0155440415
+## E    0    0    0    2 2163 0.0009237875
+##                 Test set error rate: 0.55%
+## Confusion matrix:
+##      A    B    C    D    E class.error
+## A 2232    0    0    0    0 0.000000000
+## B   13 1501    4    0    0 0.011198946
+## C    0    8 1357    3    0 0.008040936
+## D    0    0   12 1273    1 0.010108865
+## E    0    0    0    2 1440 0.001386963</code></pre>
+<pre><code>## 
+## Call:
+##  randomForest(x = liftTrain_PCA, y = liftTrain_ML$classe, xtest = liftTest_PCA,      ytest = liftTest_ML$classe, ntree = n_grove, proximity = TRUE,      keep.forest = TRUE) 
+##                Type of random forest: classification
+##                      Number of trees: 250
+## No. of variables tried at each split: 6
+## 
+##         OOB estimate of  error rate: 2.42%
+## Confusion matrix:
+##      A    B    C    D    E class.error
+## A 3338    5    2    2    1 0.002986858
+## B   52 2196   25    3    3 0.036419482
+## C    1   29 2005   18    1 0.023855891
+## D    6    1   91 1825    7 0.054404145
+## E    2   16   11    9 2127 0.017551963
+##                 Test set error rate: 2.57%
+## Confusion matrix:
+##      A    B    C    D    E class.error
+## A 2226    3    0    2    1 0.002688172
+## B   38 1468   11    0    1 0.032938076
+## C    2   25 1335    2    4 0.024122807
+## D    1    2   75 1205    3 0.062986003
+## E    2   18    9    3 1410 0.022191401</code></pre>
 </div>
 </div>
 

@@ -229,9 +229,9 @@ kable(x_df_pred, format = "markdown")
 ```
 
 ## Discussion and Conclusions
-While both the all-variable and high correlate exclusion models were able to predict all 20 trial movements correctly, the lower error rate of the high correlate exclusion model would probably lend it to being more reliable in larger volume trials, whereas the PCA-preprocessed model, although projected to miss at least two predictions (10% x 20), actually overperformed in only miscategorizing one. 
+While both the all-variable and high correlate exclusion models were able to predict all 20 trial movements correctly, the lower error rate of the high correlate exclusion model would probably lend it to being more reliable in larger volume trials. The PCA-preprocessed model, although projected to have the highest error rate, actually also correctly categorized all trial movements. 
 
-Nevertheless, in this case because it did not sufficiently retain the desired bias reduction, the model based on preprocessing with Principal Components Analysis was not successful. The reduction of the net 5 variables from the all-variable model down to 47 components did not sufficiently reduce the complexity to warrant the tradeoff. One can infer that the other 47 components still carried sufficient noise that made discrimination between similar movements like B (throwing the elbows to the front) and C (lifting the dumbbell only halfway)--both movements that bring the dumbbell forward--difficult. 
+Nevertheless, in this case because it did not sufficiently retain the desired bias reduction, the model based on preprocessing with Principal Components Analysis was not as successful as initially wished. The reduction of the net 5 variables from the all-variable model down to 47 components did not sufficiently reduce the complexity to warrant the tradeoff. One can infer that the other 47 components still carried sufficient noise that made discrimination between similar movements like B (throwing the elbows to the front) and C (lifting the dumbbell only halfway)--both movements that bring the dumbbell forward--difficult, which it failed to do in other trials not associated with the seed presented in these trials. 
 
 The study also demonstrated that often the noise added by highly correlated predictors can severely increase the variance of a model (in this case it yielded error 25% higher than if they had been excluded altogether) and it is important for data scientists to deal with correlates properly. Under the objectives of the study, the proper measure was to exclude them outright. Perhaps increasing the size of the partition dedicated to the training set (setting `lifttrain_ML` to 75%) could have improved the PCA model, but it is doubtful that the improvement would reduce the error to below the 5% as desired. 
 
@@ -239,8 +239,8 @@ The study also demonstrated that often the noise added by highly correlated pred
 
 # Appendix
 
-## Exhibit 1: Sample Out-of-sample Error Rates from `randomForest` output
-``` {r rfoutput,echo=FALSE,results="asis"}
+## Exhibit 1: Example Out-of-sample Error Rates from `randomForest`
+``` {r rfoutput,echo=FALSE,include=TRUE}
 print(allVar_rfFit, format = "markdown")
 print(exCorr_rfFit, format = "html")
 print(allVar_PCA_rfFit)
