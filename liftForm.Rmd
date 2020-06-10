@@ -81,12 +81,21 @@ classeColInd <- which(names(liftTrain_factor) == "classe")
 
 ``` {r trainpartition, echo=FALSE,include=FALSE}
 liftVal <- liftTest_trim
+
+# initialize error table
+df_error <- data.frame(
+        modelName = c("Including All Variables",
+                      "Excluding High Correlates",
+                      "PCA After Incl. All Variables"
+        )
+)
+
 part_prop <- 0.6
 set.seed(421337)
 liftPart <- createDataPartition(y = liftTrain_factor$classe, p = part_prop, list = FALSE)
 liftTrain_ML <- liftTrain_factor[liftPart, ]
 liftTest_ML <- liftTrain_factor[-liftPart, ]
-dim(liftTrain_ML); dim(liftTest_ML)
+nrow_train_ML <- nrow(liftTrain_ML); nrow_test_ML <- nrow(liftTest_ML) 
 train_pct <- label_percent()(part_prop)
 test_pct <- label_percent()(1 - part_prop)
 ```
@@ -96,7 +105,7 @@ to validation set `liftVal` and partitioned `liftTrain_factor` into the actual t
 
 Screening for high correlates between the predictors and the estimand and plotting the results showed a few incidences above 0.2 in either direction and a mode of 0, meaning that none of the 52 remaining variables, when taken as a sole input, predicted the estimand well.
 
-``` {r estCorr,echo=FALSE,message=FALSE,fig.height=3,fig.width=7}
+``` {r estCorr,echo=FALSE,message=FALSE}
 # estimand-to-feature correlations
 corr_screen <- data.frame(
         colNum = 1:(classeColInd - 1),
@@ -128,10 +137,47 @@ hi_corr_excl <- c(hi_intra_corr[, 1], classeColInd)
 
 Accordingly the high intra-feature correlates above 0.8 were flagged. Theoretically the main ways to deal with these correlates were to (a) exclude them entirely, or (b) leave them in, but streamline their contribution to the model through PCA. Next, principal Components Analysis was performed in an attempt to winnow redundant predictors. The transformation was applied in like manner to the training, testing, and validation sets after excluding the __classe__ column in each (although it should be noted the validation set's 53rd column was not __classe__, but row number and therefore excluded from the PCA to reduce noise). Because the optimal number of components was unknown, the study instead opted to specify a threshold variance for the preprocessing to retain, as shown in the code below:
 ``` {r pca,echo=TRUE}
-liftTrain_prePCA <- preProcess(liftTrain_ML[, -classeColInd], method = "pca", thresh = 0.999)
-liftTrain_PCA <- predict(liftTrain_prePCA, liftTrain_ML[, -classeColInd])
-liftTest_PCA <- predict(liftTrain_prePCA, liftTest_ML[, -classeColInd])
-liftVal_PCA <- predict(liftTrain_prePCA, liftVal[, -classeColInd])
+set.seed(421337)
+
+for(i in 1:3) {
+        liftPart <- createDataPartition(y = liftTrain_factor$classe, p = part_prop, list = FALSE)
+        liftTrain_ML <- liftTrain_factor[liftPart, ]
+        liftTest_ML <- liftTrain_factor[-liftPart, ]
+        
+        liftTrain_prePCA <- preProcess(liftTrain_ML[, -classeColInd], method = "pca", thresh = 0.999)
+        liftTrain_PCA <- predict(liftTrain_prePCA, liftTrain_ML[, -classeColInd])
+        liftTest_PCA <- predict(liftTrain_prePCA, liftTest_ML[, -classeColInd])
+        liftVal_PCA <- predict(liftTrain_prePCA, liftVal[, -classeColInd])
+
+        n_grove <- 250
+        allVar_rfFit <- randomForest(
+                keep.forest = TRUE, proximity = TRUE, ntree = n_grove,
+                x = liftTrain_ML[, -classeColInd], y = liftTrain_ML$classe,
+                xtest = liftTest_ML[, -classeColInd], ytest = liftTest_ML$classe 
+        )
+        exCorr_rfFit <- randomForest(
+                keep.forest = TRUE, proximity = TRUE, ntree = n_grove, 
+                x = liftTrain_ML[, -hi_corr_excl], y = liftTrain_ML$classe,
+                xtest = liftTest_ML[, -hi_corr_excl], ytest = liftTest_ML$classe
+        )
+        allVar_PCA_rfFit <- randomForest(
+                keep.forest = TRUE, proximity = TRUE, ntree = n_grove,
+                x = liftTrain_PCA, y = liftTrain_ML$classe,
+                xtest = liftTest_PCA, ytest = liftTest_ML$classe
+        )
+        
+        # gather the error statistics
+        allVar_err <- round((1 - sum(diag(allVar_rfFit$test$confusion))) / nrow_train_ML, 5)
+        exCorr_err <- round((1 - sum(diag(exCorr_rfFit$test$confusion))) / nrow_train_ML, 5)
+        allVar_PCA_err <- round((1 - sum(diag(allVar_PCA_rfFit$test$confusion))) / nrow_train_ML, 5)
+        
+        df_error <- data.frame(cbind(df_error,
+                                     c(allVar_err, 
+                                       exCorr_err,
+                                       allVar_PCA_err
+                                       )
+        ))
+}
 ```
 
 The resulting component field matrix had a rank of 47, which is somewhat of a reduction, but perhaps not as substantial as desired. 
@@ -139,38 +185,20 @@ The resulting component field matrix had a rank of 47, which is somewhat of a re
 # Model Results and Selection
 Finally, the random forest training was performed on: (1) the cleaned data set; (2) the cleaned data excluding high intra-feature correlates; and (3) the cleaned data preprocessed using PCA. 
 ```{r randFor,echo=TRUE}
-n_grove <- 500
-allVar_rfFit <- randomForest(
-        keep.forest = TRUE, proximity = TRUE, ntree = n_grove,
-        x = liftTrain_ML[, -classeColInd], y = liftTrain_ML$classe,
-        xtest = liftTest_ML[, -classeColInd], ytest = liftTest_ML$classe 
-)
-exCorr_rfFit <- randomForest(
-        keep.forest = TRUE, proximity = TRUE, ntree = n_grove, 
-        x = liftTrain_ML[, -hi_corr_excl], y = liftTrain_ML$classe,
-        xtest = liftTest_ML[, -hi_corr_excl], ytest = liftTest_ML$classe
-)
-allVar_PCA_rfFit <- randomForest(
-        keep.forest = TRUE, proximity = TRUE, ntree = n_grove,
-        x = liftTrain_PCA, y = liftTrain_ML$classe,
-        xtest = liftTest_PCA, ytest = liftTest_ML$classe
-)
 ```
 
 The errors from the random forest training are shown below: 
 
 ``` {r errPred,echo=FALSE,results="asis"}
-df_error <- data.frame(
-        modelName = c("Including All Variables",
-                          "Excluding High Correlates",
-                          "PCA After Incl. All Variables"
-        ),
-        modelError = c(
-                round(sum(allVar_rfFit$test$confusion[, 'class.error']), 5),
-                round(sum(exCorr_rfFit$test$confusion[, 'class.error']), 5),
-                round(sum(allVar_PCA_rfFit$test$confusion[, 'class.error']), 5)
-        )
+names(df_error)[2:4] <- c(
+        "modelError1",
+        "modelError2",
+        "modelError3"
 )
+df_error <- df_error %>%
+        mutate(
+                avgError = (modelError1 + modelError2 + modelError3) / 3
+        )
 x_df_error <- xtable(df_error)
 kable(x_df_error, format = "markdown")
 ```
@@ -178,8 +206,8 @@ kable(x_df_error, format = "markdown")
 The model trained with the PCA-preprocessed matrix yielded models with much higher error at 0.102, almost three times that of the non-PCA version of the matrix at 0.035, and almost four times the 0.027 rate of the non-PCA version which simply excluded the high correlate features. Therefore, the study selected the lowest-error model which was trained on just the non-high-correlate features of the cleaned training set, but also proceeded to run predictions using the other two models, with the following results: 
 
 ``` {r predSumm,echo=FALSE,results="asis"}
-exCorrPred <- predict(exCorr_rfFit, liftVal[, -hi_corr_excl])
 allVarPred <- predict(allVar_rfFit, liftVal[, -classeColInd])
+exCorrPred <- predict(exCorr_rfFit, liftVal[, -hi_corr_excl])
 allVarPCAPred <- predict(allVar_PCA_rfFit, liftVal_PCA)
 
 df_pred <- data.frame(cbind(allVarPred, exCorrPred, allVarPCAPred))
@@ -200,8 +228,8 @@ The study also demonstrated that often the noise added by highly correlated pred
 \newpage
 # Appendix
 
-## Exhibit 1: Cross-validation and Out-of-sample Error Rates
-``` {r predSumm,echo=FALSE,results="asis"}
+## Exhibit 1: Sample Out-of-sample Error Rates from `randomForest` output
+``` {r rfoutput,echo=FALSE,results="asis"}
 allVar_rfFit
 exCorr_rfFit
 allVar_PCA_rfFit
