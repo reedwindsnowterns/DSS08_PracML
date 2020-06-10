@@ -236,11 +236,12 @@ Nevertheless, in this case because it did not sufficiently retain the desired bi
 The study also demonstrated that often the noise added by highly correlated predictors can severely increase the variance of a model (in this case it yielded error 25% higher than if they had been excluded altogether) and it is important for data scientists to deal with correlates properly. Under the objectives of the study, the proper measure was to exclude them outright. Perhaps increasing the size of the partition dedicated to the training set (setting `lifttrain_ML` to 75%) could have improved the PCA model, but it is doubtful that the improvement would reduce the error to below the 5% as desired. 
 
 \newpage
+
 # Appendix
 
 ## Exhibit 1: Sample Out-of-sample Error Rates from `randomForest` output
 ``` {r rfoutput,echo=FALSE,results="asis"}
-allVar_rfFit
-exCorr_rfFit
-allVar_PCA_rfFit
+print(allVar_rfFit, format = "markdown")
+print(exCorr_rfFit, format = "html")
+print(allVar_PCA_rfFit)
 ```
