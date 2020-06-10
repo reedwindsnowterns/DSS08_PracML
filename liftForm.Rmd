@@ -21,7 +21,7 @@ Submitted by Andrew Chang on `r dateSubmit` for the Johns Hopkins Practical Mach
 ## Overview of the Study 
 The purpose of this study was to train a model that could identify a specific exercise movement based on kinematic (accelerometer and gyroscopic) measurements and evaluate its predictive ability on a test set of 20 observations. The study determined relevant features extracted from a set of 160 candidate features that were associated with kinematic movements, ultimately arriving at a set of 52 features as viable predictors for model fitting. In the course of identification, a set of highly correlated predictors were flagged out of the set of viable predictors to better inform model selection decisions regarding bias-reduction/variance-increase trade-offs at a later stage, for either Principal Components Analysis (PCA) or outright elimination. The study then trained three models corresponding to datasets that (1) included all variables, (2) excluded high-correlate variables, and (3) preprocessing the variables via PCA. 
 
-To achieve cross-validation and an evaluation stage prior to the ultimate validation of the model, the original test set was set aside as the validation set and in its stead 40% of the training model was run three different times, with each iteration being built on a newly arranged partition. The training parameters of the three aforementioned models were then set for an out of sample error of at most 5%. Since the final validation of models is comprised of 20 trials, the predicted error rate would likely have to be less than 5% for the model to reliably predict all 20 trials. However, the PCA-preprocessed predictors might not be as successful at eliminating bias and the error rate could be an order of magnitude higher. A casual hypothesis of the study is that simple linear regression would be insufficient to categorize the movement. The random forest algorithm was chosen because of its accuracy in prediction, which was the primary objective of the study. The downsides involved with random forest algorithm were considered, but ultimately overridden since in at least the PCA model interpretability would be an issue regardless, speed is not an issue, and parameter-setting and cross validation measures had already been taken to ameliorate overfitting. After the preliminary internal testing, the accuracy of three models was then compared and one was selected to identify the 20 exercise movements. 
+To achieve __cross-validation__ and an evaluation stage prior to the ultimate validation of the model, the original test set was set aside as the validation set and in its stead 40% of the training model was assigned as the official test set. The training was run and evaluated three different times, with each iteration being built on a newly arranged partition. The training parameters of the three aforementioned models were then set for an out of sample error of at most 5%. Since the final validation of models is comprised of 20 trials, the predicted error rate would likely have to be less than 5% for the model to reliably predict all 20 trials. However, the PCA-preprocessed predictors might not be as successful at eliminating bias and the error rate could be an order of magnitude higher. In any case, the __out-of-sample error__ from the three different models was estimated under the __Model Cross-validation and Selection__ selection. A casual hypothesis of the study is that simple linear regression would be insufficient to categorize the movement. The random forest algorithm was chosen because of its accuracy in prediction, which was the primary objective of the study. The downsides involved with random forest algorithm were considered, but ultimately overridden since in at least the PCA model interpretability would be an issue regardless, speed is not an issue, and parameter-setting and cross validation measures had already been taken to ameliorate overfitting. After the preliminary internal testing, the accuracy of three models was then compared and one was selected to identify the 20 exercise movements. 
  
 ``` {r readin, echo = FALSE}
 # Step 0. Load libraries, find/create folders, download and extract raw data, 
@@ -183,14 +183,12 @@ for(i in 1:3) {
 
 The resulting component field matrix had a rank of 47, which is somewhat of a reduction, but perhaps not as substantial as desired. 
 
-# Model Results and Selection
+# Model Cross-validation and Selection Based on Out of Sample Error 
 Finally, the random forest training was performed on: (1) the cleaned data set; (2) the cleaned data excluding high intra-feature correlates; and (3) the cleaned data preprocessed using PCA. 
 ```{r rfErr,echo=TRUE}
 ```
 
-The errors from the random forest training are shown below: 
-
-``` {r errPred,echo=FALSE,results="asis"}
+``` {r errPred,echo=FALSE,results="hide"}
 names(df_error)[2:4] <- c(
         "modelError1",
         "modelError2",
@@ -212,7 +210,12 @@ x_df_error <- xtable(df_error)
 kable(x_df_error, format = "markdown")
 ```
 
-The model trained with the PCA-preprocessed matrix yielded models with much higher error at `r allVar_PCA_err_avg`, `r ratio_PCA_exC` times that of the non-PCA version of the matrix at `r allVar_err_avg`, and `r ratio_PCA_all` times the `r exCorr_err_avg` rate of the non-PCA version which simply excluded the high correlate features. Therefore, the study selected the lowest-error model which was trained on just the non-high-correlate features of the cleaned training set, but also proceeded to run predictions using the other two models, with the following results: 
+The errors from the random forest training are shown below: 
+
+``` {r errPred,echo=FALSE,results="asis"}
+```
+
+The model trained with the PCA-preprocessed matrix yielded models with much higher error at `r allVar_PCA_err_avg`, `r ratio_PCA_exC` times that of the non-PCA version of the matrix at `r allVar_err_avg`, and `r ratio_PCA_all` times the `r exCorr_err_avg` rate of the non-PCA version which simply excluded the high correlate features. Therefore, the study selected the lowest-error model which was trained on just the non-high-correlate features of the cleaned training set, and from which one can estimate the __out of sample error__ as `r exCorr_err_avg`. However, the study also proceeded to run predictions using the other two models, with the following results: 
 
 ``` {r predSumm,echo=FALSE,results="asis"}
 allVarPred <- predict(allVar_rfFit, liftVal[, -classeColInd])
