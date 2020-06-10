@@ -1686,10 +1686,9 @@ for(i in 1:3) {
         )
         
         # gather the error statistics
-        allVar_err &lt;- round((1 - sum(diag(allVar_rfFit$confusion)) / nrow_train_ML), 5)
-        exCorr_err &lt;- round((1 - sum(diag(exCorr_rfFit$confusion)) / nrow_train_ML), 5)
-        allVar_PCA_err &lt;- round((1 - sum(diag(allVar_PCA_rfFit$confusion)) / nrow_train_ML), 5)
-        
+        allVar_err &lt;- round((1 - sum(diag(allVar_rfFit$test$confusion)) / nrow_test_ML), 5)
+        exCorr_err &lt;- round((1 - sum(diag(exCorr_rfFit$test$confusion)) / nrow_test_ML), 5)
+        allVar_PCA_err &lt;- round((1 - sum(diag(allVar_PCA_rfFit$test$confusion)) / nrow_test_ML), 5)
         df_error &lt;- data.frame(cbind(df_error,
                                      c(allVar_err, 
                                        exCorr_err,
@@ -1717,28 +1716,28 @@ for(i in 1:3) {
 <tbody>
 <tr class="odd">
 <td align="left">Including All Variables</td>
-<td align="right">0.00764</td>
-<td align="right">0.00688</td>
-<td align="right">0.00730</td>
-<td align="right">0.00727</td>
+<td align="right">0.00625</td>
+<td align="right">0.00790</td>
+<td align="right">0.00739</td>
+<td align="right">0.00718</td>
 </tr>
 <tr class="even">
 <td align="left">Excluding High Correlates</td>
-<td align="right">0.00645</td>
-<td align="right">0.00577</td>
-<td align="right">0.00586</td>
-<td align="right">0.00603</td>
+<td align="right">0.00523</td>
+<td align="right">0.00714</td>
+<td align="right">0.00548</td>
+<td align="right">0.00595</td>
 </tr>
 <tr class="odd">
 <td align="left">PCA After Incl. All Variables</td>
-<td align="right">0.02666</td>
-<td align="right">0.02488</td>
-<td align="right">0.02420</td>
-<td align="right">0.02525</td>
+<td align="right">0.01848</td>
+<td align="right">0.02587</td>
+<td align="right">0.02575</td>
+<td align="right">0.02337</td>
 </tr>
 </tbody>
 </table>
-<p>The model trained with the PCA-preprocessed matrix yielded models with much higher error at 0.02525, 4.2 times that of the non-PCA version of the matrix at 0.00727, and 3.5 times the 0.00603 rate of the non-PCA version which simply excluded the high correlate features. Therefore, the study selected the lowest-error model which was trained on just the non-high-correlate features of the cleaned training set, but also proceeded to run predictions using the other two models, with the following results:</p>
+<p>The model trained with the PCA-preprocessed matrix yielded models with much higher error at 0.02337, 3.9 times that of the non-PCA version of the matrix at 0.00718, and 3.3 times the 0.00595 rate of the non-PCA version which simply excluded the high correlate features. Therefore, the study selected the lowest-error model which was trained on just the non-high-correlate features of the cleaned training set, but also proceeded to run predictions using the other two models, with the following results:</p>
 <table>
 <thead>
 <tr class="header">
@@ -1881,8 +1880,8 @@ for(i in 1:3) {
 </div>
 <div id="appendix" class="section level1">
 <h1>Appendix</h1>
-<div id="exhibit-1-sample-out-of-sample-error-rates-from-randomforest-output" class="section level2">
-<h2>Exhibit 1: Sample Out-of-sample Error Rates from <code>randomForest</code> output</h2>
+<div id="exhibit-1-example-out-of-sample-error-rates-from-randomforest" class="section level2">
+<h2>Exhibit 1: Example Out-of-sample Error Rates from <code>randomForest</code></h2>
 <pre><code>## 
 ## Call:
 ##  randomForest(x = liftTrain_ML[, -classeColInd], y = liftTrain_ML$classe,      xtest = liftTest_ML[, -classeColInd], ytest = liftTest_ML$classe,      ntree = n_grove, proximity = TRUE, keep.forest = TRUE) 

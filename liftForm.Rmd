@@ -19,9 +19,9 @@ rand <- rnorm(1)
 Submitted by Andrew Chang on `r dateSubmit` for the Johns Hopkins Practical Machine Learning course
 
 ## Overview of the Study 
-The purpose of this study was to train a model that could identify a specific exercise movement based on kinematic (accelerometer and gyroscopic) measurements and evaluate its predictive ability on a test set of 20 observations. The study determined relevant features extracted from a set of 160 candidate features that were associated with kinematic movements, ultimately arriving at a set of 52 features as viable predictors for model fitting. In the course of identification, a set of highly correlated predictors were flagged out of the set of viable predictors to better inform model selection decisions regarding bias-reduction/variance-increase trade-offs at a later stage, for either Principal Components Analysis (PCA) or outright elimination. The study then trained three models corresponding to datasets that (1) included all variables, (2) excluded high-correlate variables, and (3) preprocessing the variables via PCA. To achieve cross-validation and an evaluation stage prior to the ultimate validation of the model, the original test set was set aside as the validation set and in its stead 40% of the training model was partitioned to serve as a preliminary test set. The training parameters of the three aforementioned models were then set for an out of sample error of at most 5%. Since the final validation of models is comprised of 20 trials, the predicted error rate would likely have to be less than 5% for the model to reliably predict all 20 trials. However, the PCA-preprocessed predictors might not be as successful at eliminating bias and the error rate could be an order of magnitude higher. 
+The purpose of this study was to train a model that could identify a specific exercise movement based on kinematic (accelerometer and gyroscopic) measurements and evaluate its predictive ability on a test set of 20 observations. The study determined relevant features extracted from a set of 160 candidate features that were associated with kinematic movements, ultimately arriving at a set of 52 features as viable predictors for model fitting. In the course of identification, a set of highly correlated predictors were flagged out of the set of viable predictors to better inform model selection decisions regarding bias-reduction/variance-increase trade-offs at a later stage, for either Principal Components Analysis (PCA) or outright elimination. The study then trained three models corresponding to datasets that (1) included all variables, (2) excluded high-correlate variables, and (3) preprocessing the variables via PCA. 
 
-A casual hypothesis of the study is that simple linear regression would be insufficient to categorize the movement. The random forest algorithm was chosen because of its accuracy in prediction, which was the primary objective of the study. The downsides involved with random forest algorithm were considered, but ultimately overridden since in at least the PCA model interpretability would be an issue regardless, speed is not an issue, and parameter-setting and cross validation measures had already been taken to ameliorate overfitting. After the preliminary internal testing, the accuracy of three models was then compared and one was selected to identify the 20 exercise movements. 
+To achieve cross-validation and an evaluation stage prior to the ultimate validation of the model, the original test set was set aside as the validation set and in its stead 40% of the training model was run three different times, with each iteration being built on a newly arranged partition. The training parameters of the three aforementioned models were then set for an out of sample error of at most 5%. Since the final validation of models is comprised of 20 trials, the predicted error rate would likely have to be less than 5% for the model to reliably predict all 20 trials. However, the PCA-preprocessed predictors might not be as successful at eliminating bias and the error rate could be an order of magnitude higher. A casual hypothesis of the study is that simple linear regression would be insufficient to categorize the movement. The random forest algorithm was chosen because of its accuracy in prediction, which was the primary objective of the study. The downsides involved with random forest algorithm were considered, but ultimately overridden since in at least the PCA model interpretability would be an issue regardless, speed is not an issue, and parameter-setting and cross validation measures had already been taken to ameliorate overfitting. After the preliminary internal testing, the accuracy of three models was then compared and one was selected to identify the 20 exercise movements. 
  
 ``` {r readin, echo = FALSE}
 # Step 0. Load libraries, find/create folders, download and extract raw data, 
@@ -169,10 +169,9 @@ for(i in 1:3) {
         )
         
         # gather the error statistics
-        allVar_err <- round((1 - sum(diag(allVar_rfFit$confusion)) / nrow_train_ML), 5)
-        exCorr_err <- round((1 - sum(diag(exCorr_rfFit$confusion)) / nrow_train_ML), 5)
-        allVar_PCA_err <- round((1 - sum(diag(allVar_PCA_rfFit$confusion)) / nrow_train_ML), 5)
-        
+        allVar_err <- round((1 - sum(diag(allVar_rfFit$test$confusion)) / nrow_test_ML), 5)
+        exCorr_err <- round((1 - sum(diag(exCorr_rfFit$test$confusion)) / nrow_test_ML), 5)
+        allVar_PCA_err <- round((1 - sum(diag(allVar_PCA_rfFit$test$confusion)) / nrow_test_ML), 5)
         df_error <- data.frame(cbind(df_error,
                                      c(allVar_err, 
                                        exCorr_err,
@@ -242,6 +241,6 @@ The study also demonstrated that often the noise added by highly correlated pred
 ## Exhibit 1: Example Out-of-sample Error Rates from `randomForest`
 ``` {r rfoutput,echo=FALSE,include=TRUE}
 print(allVar_rfFit, format = "markdown")
-print(exCorr_rfFit, format = "html")
-print(allVar_PCA_rfFit)
+print(exCorr_rfFit, format = "markdown")
+print(allVar_PCA_rfFit, format = "markdown")
 ```
